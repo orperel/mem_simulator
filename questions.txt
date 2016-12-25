@@ -1,0 +1,36 @@
+1) Exceptions - should be handled?
+2) Main mem cycles? If bus is 64 bit and block size is 32 - do we get 100 clock cycles or 101?
+3) Memory is not stored in bytes (but integers.. because python doesn't have bytes, just aliases for strings).
+4) No miss time for l1, l2 caches?
+
+
+
+TODO:
+-----
+
+- align addresses to 4 (e.g: 127 -> 0)
+- take care of bus size for both r/w directions!
+
+
+
+
+new questions:
+--------------------
+1) What if we have a write miss and L2 block size s > L1 block size?
+We crop some of the block?
+
+2) After write miss - do we flush only the old block to the next level or the new one as well? (in that case, dirty bit should be on almost always)
+
+3) Miss rate - is (read hits + write hits) / (read hits + misses + write hits + misses)?
+
+4) When there is no L2 cache, should the global MR be the same as L1?
+
+5) When calculating AMAT - if extra cycles are required when the bandwidth between MM and cache is too small, should we account for them as well?
+
+6) When we transfer data too big for the bus, do we count only the block size we have to transfer, or do we count the address bits as well?
+
+7) Is it legal to ask for addresses in the middle of the block? (E.g: block size is 4 for L1 cache, and we ask for address 0x5, or block size is 8 and we ask for address 0xA)
+
+TODO:
+--------------------
+- Change MM to 16MB
