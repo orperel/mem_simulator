@@ -196,7 +196,7 @@ class L1Cache(MemoryInterface):
         # Only flush to next level if block is valid and content is dirty
         if is_valid and is_dirty:
             cycles_elapsed = self.next_mem.store(address, block_size, data)
-            self.tag_mem[index] |= self.dirty_mask  # Turn dirty bit off
+            self.tag_mem[index] &= ~self.dirty_mask  # Turn dirty bit off
 
         return cycles_elapsed
 

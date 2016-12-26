@@ -8,7 +8,7 @@
 TODO:
 -----
 
-- align addresses to 4 (e.g: 127 -> 0)
+- align addresses to 4 (e.g: 127 -> 0), or middle of blocks (mainmemory can write in load / store to addresses that span multiple blocks, e.g: 0x0007 block size 4)
 - take care of bus size for both r/w directions!
 
 
@@ -30,6 +30,10 @@ We crop some of the block?
 6) When we transfer data too big for the bus, do we count only the block size we have to transfer, or do we count the address bits as well?
 
 7) Is it legal to ask for addresses in the middle of the block? (E.g: block size is 4 for L1 cache, and we ask for address 0x5, or block size is 8 and we ask for address 0xA)
+
+8) Should we flush dirty blocks from cache to the memory by the end of the simulation?
+
+9) flushing a block, do we pay 100 cycles for the main memory penalty + 1 more cycle for writing the new block (meaning, do we assume L1cache waits until MM is done writing the block before writing his new value)?
 
 TODO:
 --------------------

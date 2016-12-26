@@ -118,9 +118,9 @@ def big_endian_to_little_endian(data: int) -> list:
     """
     little_end_data = [0] * 4
     little_end_data[0] = data & 0x000000FF
-    little_end_data[1] = (data & 0x0000FF00) >> 2
-    little_end_data[2] = (data & 0x00FF0000) >> 4
-    little_end_data[3] = (data & 0xFF000000) >> 6
+    little_end_data[1] = (data & 0x0000FF00) >> 8
+    little_end_data[2] = (data & 0x00FF0000) >> 16
+    little_end_data[3] = (data & 0xFF000000) >> 24
     return little_end_data
 
 
@@ -151,10 +151,10 @@ def simulate_cpu(trace, mem_interface) -> int:
                 data_little_end = big_endian_to_little_endian(data)  # Memory hierarchy stores data in little endian
 
                 # Execute store instruction
-                data_fetched, cycles_elapsed = mem_interface.store(address, CPU_DATA_SIZE, data_little_end)
+                cycles_elapsed = mem_interface.store(address, CPU_DATA_SIZE, data_little_end)
             else:
                 # Execute load instruction
-                cycles_elapsed = mem_interface.load(address, CPU_DATA_SIZE)
+                data_fetched, cycles_elapsed = mem_interface.load(address, CPU_DATA_SIZE)
             cc_counter += cycles_elapsed
 
     return cc_counter
