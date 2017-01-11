@@ -43,13 +43,12 @@ class L2Cache(MemoryInterface):
         """
         pass    # TODO: Implement
 
-    def write_miss_callback(self, address: int, block_size: int, data=[]) -> int:
+    def write_miss_callback(self, address: int, block_size: int) -> int:
         """
         This callback is triggered when a write cache miss occurred in the current mem level and
         dirty data should now be handled before write process can resume.
         :param address: Address of block to flush, 4 byte aligned
         :param block_size: Block size to flush to next memory, in amount of bytes
-        :param data: Data to be saved, as a list of bytes, little endian format expected (will be saved as is)
         :return: (clock cycles elapsed as int)
         """
         pass
@@ -69,7 +68,9 @@ class L2Cache(MemoryInterface):
         Perform read operation from the memory, using the memory's inner logic.
         This method assumes the data is stored in the cache, and is valid.
         :param address: Address to read from, 4 byte aligned
-        :param block_size: Block size to read from memory, in amount of bytes
+        :param block_size: Block size to read from memory and return to previous level, in amount of bytes.
+                           This is not necessarily the L2Cache block_size, the previous level may request less bytes
+                           to transfer on the bus (therefore L2Cache may return a smaller block than it loads).
         :return: (data read as list of bytes, clock cycles elapsed as int)
         """
         return None  # TODO: Implement

@@ -65,7 +65,7 @@ class MainMemory(MemoryInterface):
         """
         return 0
 
-    def write_miss_callback(self, address: int, block_size: int, data=[]) -> int:
+    def write_miss_callback(self, address: int, block_size: int) -> int:
         """
             Do nothing for main memory, no write miss should occur hee.
             :return: (clock cycles elapsed as int)
@@ -93,7 +93,7 @@ class MainMemory(MemoryInterface):
         Perform read operation from the main memory, at the size of block_size.
         This method assumes the data is stored in the memory, and is valid.
         :param address: Address to read from, 4 byte aligned
-        :param block_size: Block size to read from memory, in amount of bytes
+        :param block_size: Block size to read from memory and return to previous level, in amount of bytes.
         :return: (data read as list of bytes, clock cycles elapsed as int)
         """
 

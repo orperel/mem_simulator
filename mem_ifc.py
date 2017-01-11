@@ -47,13 +47,12 @@ class MemoryInterface(object):
         pass
 
     @abc.abstractmethod
-    def write_miss_callback(self, address: int, block_size: int, data=[]) -> int:
+    def write_miss_callback(self, address: int, block_size: int) -> int:
         """
         This callback is triggered when a write cache miss occurred in the current mem level and
         dirty data should now be handled before write process can resume.
         :param address: Address of block to flush, 4 byte aligned
         :param block_size: Block size to flush to next memory, in amount of bytes
-        :param data: Data to be saved, as a list of bytes, little endian format expected (will be saved as is)
         :return: (clock cycles elapsed as int)
         """
         pass
@@ -64,7 +63,9 @@ class MemoryInterface(object):
         Perform read operation from the memory, using the memory's inner logic.
         This method assumes the data is stored in the memory, and is valid.
         :param address: Address to read from, 4 byte aligned
-        :param block_size: Block size to read from memory, in amount of bytes
+        :param block_size: Block size to read from memory, in amount of bytes.
+                           This is the amount returned to the caller on the bus by the read operation.
+                           The memory interface may use larger block sizes than that.
         :return: (data read as list of bytes, clock cycles elapsed as int)
         """
         pass
@@ -92,7 +93,8 @@ class MemoryInterface(object):
             return self.read(address, block_size)
         else:  # Cache miss
             self.read_misses += 1
-            data, cycles_elapsed = self.next_mem.load(address, block_size)
+            block_start_address = address - (address % block_size)  # Fetch entire block from next level
+            data, cycles_elapsed = self.next_mem.load(block_start_address, block_size)
             cycles_elapsed += self.read_miss_callback(address, block_size, data)
             return data, cycles_elapsed
 
@@ -111,7 +113,7 @@ class MemoryInterface(object):
             self.write_misses += 1
 
             # The memory level should decide if data should be written to next level or not, according to status bits
-            cycles_elapsed = self.write_miss_callback(address, block_size, data)
+            cycles_elapsed = self.write_miss_callback(address, block_size)
             cycles_elapsed += self.write(address, block_size, data)
             return cycles_elapsed
 

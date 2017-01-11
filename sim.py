@@ -142,7 +142,7 @@ def simulate_cpu(trace, mem_interface) -> int:
 
             next_instruction = next_instruction.rstrip()  # Remove redundant whitespaces
             inst_decode = next_instruction.split(sim_constants.FILE_DELIMITER)  # Decode instruction
-            num_of_cycles_passed = int(inst_decode[0])   # First component is number of cycles elapsed for non L/S commands
+            num_of_cycles_passed = int(inst_decode[0])  # First component is number of cycles elapsed for non L/S commands
             cc_counter += num_of_cycles_passed
             is_store_instruction = (inst_decode[1] == 'S')  # Second component defines (L)oad or (S)tore command
             address = int(inst_decode[2], 16)  # Third component is the address we're trying to access

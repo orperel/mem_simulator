@@ -127,6 +127,18 @@ class L1Cache(MemoryInterface):
         address_tag = (address & self.tag_mask) >> (self.offset_bits + self.index_bits)
         return address_tag
 
+    def address_from_tag_index(self, tag: int, index: int) -> int:
+        """
+        Construct address from tag and index bits (offset is assumed as 0)
+        :param tag: tag bits of the address (expected to use correct amount of tag bits)
+        :param index: index bits of the address (expected to use correct amount of index bits)
+        :return: Fully reconstructed address composed of "ADDRESS_BITS" amount of bits.
+        """
+        tag_shifted = tag << (self.offset_bits + self.index_bits)
+        index_shifted = index << self.offset_bits
+        address = tag_shifted | index_shifted
+        return address
+
     def transfer_cycles(self, block_size: int) -> int:
         """
         Returns the amount of cycles needed to read / write the block_size given to the L1 cache.
@@ -171,15 +183,14 @@ class L1Cache(MemoryInterface):
         """
 
         # Update the cache with the missing data, as fits to a L1 block - according to write-allocate policy
-        return self.write(address, self.block_size, data)
+        return self.write(address, block_size, data)
 
-    def write_miss_callback(self, address: int, block_size: int, data=[]) -> int:
+    def write_miss_callback(self, address: int, block_size: int) -> int:
         """
         This callback is triggered when a write cache miss occurred in the current mem level and
         dirty data should now be handled before write process can resume.
         :param address: Address of block to flush, 4 byte aligned
         :param block_size: Block size to flush to next memory, in amount of bytes
-        :param data: Data to be saved, as a list of bytes, little endian format expected (will be saved as is)
         :return: (clock cycles elapsed as int)
         """
 
@@ -195,7 +206,15 @@ class L1Cache(MemoryInterface):
 
         # Only flush to next level if block is valid and content is dirty
         if is_valid and is_dirty:
-            cycles_elapsed = self.next_mem.store(address, block_size, data)
+
+            # First read the old block data we should flush (ignore cycles_elapsed, this is not a read operation
+            # that sends data over the bus so no cycles should elapse).
+            data = self.read(address, self.block_size)[0]
+
+            # Reconstruct the flushed block address by using the cached tag value and index bits
+            tag = cached_tag_mem & self.tag_mem_mask  # Filter out valid, dirty bits
+            flushed_address = self.address_from_tag_index(tag, index)
+            cycles_elapsed = self.next_mem.store(flushed_address, self.block_size, data)  # Flush block to next level
             self.tag_mem[index] &= ~self.dirty_mask  # Turn dirty bit off
 
         return cycles_elapsed
@@ -214,7 +233,7 @@ class L1Cache(MemoryInterface):
 
         block_num = self.address_to_block_num(address)
         start = block_num * self.block_size
-        end = start + block_size
+        end = start + self.block_size
 
         # Copy data to data memory
         for new_data_cursor, mem_cursor in enumerate(range(start, end)):
@@ -234,17 +253,26 @@ class L1Cache(MemoryInterface):
         Perform read operation from the memory, using the memory's inner logic.
         This method assumes the data is stored in the cache, and is valid.
         :param address: Address to read from, 4 byte aligned
-        :param block_size: Block size to read from memory, in amount of bytes
+        :param block_size: Block size to read from memory and return to previous level, in amount of bytes.
+                           This is not necessarily the L1Cache block_size, the previous level may request less bytes
+                           to transfer on the bus.
         :return: (data read as list of bytes, clock cycles elapsed as int)
         """
 
         # Fetch the index bits to choose the block from the data memory
         block_num = self.address_to_block_num(address)
-        start = block_num * self.block_size
+        start = block_num * self.block_size  # Note: We read the amount of bytes equal to L1 cache block size
         end = start + block_size
 
         # Read a whole block
         data_read = self.data_mem[start:end]
+
+        # Technically the amount of bytes we return on the bus equals to the block size of the previous level
+        # as it requested. L1 cache only knows how to read amount of bytes according to L1 Cache block_size, but
+        # theoretically the CPU may request "less bytes than L1.BlockSize"
+        # so we transfer an amount smaller than the L1 block size, which is equal to the block_size argument of this
+        # function.
+        # (this case is actually more evident in L2Cache, we include it here for completeness sake)
         elapsed_time = self.transfer_cycles(block_size)
 
         return data_read, elapsed_time
