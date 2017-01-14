@@ -48,7 +48,7 @@ class MainMemory(MemoryInterface):
         """
         # Access time is 100 clock cycles + 1 cc for each additional block transferred on the bus starting from the 2nd.
         access_time = self.MEM_ACCESS_TIME + \
-                      (ceil(data_size / self.MEM_BUS_WIDTH) - 1) * self.MEM_BUS_ACCESS_TIME
+                      (ceil(8*data_size / self.MEM_BUS_WIDTH) - 1) * self.MEM_BUS_ACCESS_TIME
         return access_time
 
     def get_block_size(self) -> int:

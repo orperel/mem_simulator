@@ -158,7 +158,7 @@ class L1Cache(MemoryInterface):
         :return: Amount of cycles taken to pass the data on the bus
         """
         return self.MEM_HIT_TIME +\
-               (ceil(data_size / self.MEM_BUS_WIDTH) - 1) * self.MEM_BUS_ACCESS_TIME
+               (ceil(8*data_size / self.MEM_BUS_WIDTH) - 1) * self.MEM_BUS_ACCESS_TIME
 
     def is_address_present(self, address: int) -> bool:
         """
