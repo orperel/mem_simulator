@@ -100,8 +100,8 @@ class L1Cache(MemoryInterface):
 
         # Dirty and valid bits are compressed with tag bits in the same cell in the tag memory, so their index
         # is following right after the number of tag bits used (address is 24 bit, less then 32 bit int of python)
-        self.dirty_bit_index = self.tag_bits + 1
-        self.valid_bit_index = self.tag_bits + 2
+        self.dirty_bit_index = self.tag_bits
+        self.valid_bit_index = self.tag_bits + 1
 
         # Dirty and valid masks compose of 1 bit, and are the next MSB after the tag bits in the tag mem cells
         self.dirty_mask = self.create_mask(1, self.dirty_bit_index)
@@ -242,7 +242,7 @@ class L1Cache(MemoryInterface):
         block_num = self.address_to_block_num(address)
         offset = self.address_to_offset(address)  # Offset of address within the block
         start = block_num * self.block_size + offset  # Note: We read the amount of bytes equal to data_size
-        end = start + offset + data_size
+        end = start + data_size
 
         # Copy data to data memory
         for new_data_cursor, mem_cursor in enumerate(range(start, end)):
@@ -276,7 +276,7 @@ class L1Cache(MemoryInterface):
         block_num = self.address_to_block_num(address)
         offset = self.address_to_offset(address)  # Offset of address within the block
         start = block_num * self.block_size + offset  # Note: We read the amount of bytes equal to data_size
-        end = start + offset + data_size
+        end = start + data_size
 
         # Read a whole block
         data_read = self.data_mem[start:end]

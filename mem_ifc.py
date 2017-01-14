@@ -135,6 +135,7 @@ class MemoryInterface(object):
             mark_dirty = True
             return self.write(address, mark_dirty, block_size, data)
         else:
+            self.write_misses += 1
 
             # Fetch entire block from next level
             block_start_address = address - (address % self.get_block_size())

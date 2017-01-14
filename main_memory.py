@@ -11,7 +11,7 @@ class MainMemory(MemoryInterface):
     """
 
     # Main memory parameters defined here
-    MAIN_MEM_SIZE_IN_BYTES = 16 * 1024  # Mem capacity is 16MB # TODO: Change back to 16MB, too slow for debug
+    MAIN_MEM_SIZE_IN_BYTES = 16 * 1024 * 1024  # 16 MB
     MEM_BUS_WIDTH = 64                         # In bits
     MEM_ACCESS_TIME = 100                      # In clock cycles
     MEM_BUS_ACCESS_TIME = 1                    # Any additional transfer on bus after accessing for first entry

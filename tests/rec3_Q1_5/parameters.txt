@@ -1,0 +1,4 @@
+L1 cache only
+cache size= 256 byte
+Main mem size = at least 64 * 1024
+L1 to MainMem bus width - 128 bit

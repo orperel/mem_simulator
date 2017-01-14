@@ -8,10 +8,30 @@ from main_memory import MainMemory
 from sim_constants import CPU_DATA_SIZE
 
 
-def dump_statistics(main_mem, l1_cache, l2_cache, stats, cycles_elapsed, mem_cycles_elapsed, mem_instructions_count):
+"""
+    Assumptions:
+    ------------
+        -   When L2 cache is on, compulsory miss that goes as deep as the Main Memory will update L1 and L2 serially
+            (the time calculated is transferring data on bus from Main memory to L2 + transferring data from L2 to L1).
+        -   Dirty & Valid bit are not included within the address bits (meaning we have 24 address bits + 2 for status).
+        -   All addresses are expected to be aligned to 4, and CPU is not expected to fetch non-aligned addresses.
+        -   The offset bits include the 2 LSB of alignment bits.
+            (This can easily be changed by subtracting 2 from the number of offset bits, see note in l1cache c'tor).
+            Though we could optimize here, we chose to do so to stay on the same page with recitation 3 - Q 1.5.
+        -   When block size is exactly the same size of the CPU word (e.g: both are 4 bytes), we don't optimize
+            in case of a write miss: we still fetch the required block from L2 / Main memory even though it will
+            completely get overridden (this is keep coherence with the general case of block size > 4).
+        -   Python's representation of bytes is simply an alias of Strings.
+            To keep things simple, memory is represented in integers by this simulator
+            even though we mostly deal with bytes (we make sure to treat only the LSB of those integers, as bytes).
+            The end result of the simulation is not affected, even though output file sizes may seem larger
+            (each byte is wrapped in an integer where the 24 MSB are zeros and aren't used).
+"""
+
+
+def dump_statistics(l1_cache, l2_cache, stats, cycles_elapsed, mem_cycles_elapsed, mem_instructions_count):
     """
     Dumps the statistics of the simulation to the stats file
-    :param main_mem: Main memory object
     :param l1_cache: L1 Cache object
     :param l2_cache: L2 Cache object
     :param stats: Stats file name, the output of this function
@@ -196,7 +216,7 @@ def run_sim(levels, b1, b2, trace, memin, memout, l1, l2way0, l2way1, stats):
     dump_mem_hierarchy_to_files(mem_hierarchy, levels, memout, l1, l2way0, l2way1)
 
     # Dumps the statistics of the simulation to the output file
-    dump_statistics(main_mem, l1_cache, l2_cache, stats, cycles_elapsed, mem_cycles_elapsed, mem_instructions_count)
+    dump_statistics(l1_cache, l2_cache, stats, cycles_elapsed, mem_cycles_elapsed, mem_instructions_count)
 
     print("Simulation ended successfully")
 
