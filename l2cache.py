@@ -212,6 +212,12 @@ class L2Cache(MemoryInterface):
 
         return data_read, elapsed_time
 
+    def mem_table_to_list(self, way: int) -> list:
+        mem_list = []
+        for i in range(len(self.data_mem)):
+            mem_list.extend(self.data_mem[i][way])
+        return mem_list
+        
     def dump_memory(self, *file_names):
         """ Dumps the contents of memory hierarchy to the file names given as argument.
             Each level may use one or two files, and pass the rest of the list to the next level.
@@ -220,8 +226,8 @@ class L2Cache(MemoryInterface):
             The format used in each file is byte-per-line, no headers or footers."""
         way0_file_name = file_names[0]
         way1_file_name = file_names[1]
-        self.dump_output_file(way0_file_name, self.mem0)
-        self.dump_output_file(way1_file_name, self.mem1)
+        self.dump_output_file(way0_file_name, self.mem_table_to_list(0))
+        self.dump_output_file(way1_file_name, self.mem_table_to_list(1))
         self.next_mem.dump_output_file(file_names[2:])
 
     def print_mem(self, limit=-1):
