@@ -1,6 +1,6 @@
-from mem_ifc import MemoryInterface
 from math import ceil
-from math import log2
+
+from mem_ifc import MemoryInterface
 
 
 class MainMemory(MemoryInterface):
@@ -38,19 +38,25 @@ class MainMemory(MemoryInterface):
                 self.mem[cursor] = int(entry, 16)
                 cursor += 1
 
-    def transfer_cycles(self, block_size: int) -> int:
+    def transfer_cycles(self, data_size: int) -> int:
         """
         Returns the amount of cycles needed to read / write the block_size given to the main memory.
-        (this is the amount of times it takes to pass data on the bus between L1 cache and the previous level
+        (this is the amount of times it takes to pass data on the bus between Main memory and the previous level
         in the hierarchy).
-        :param block_size: The amount of data passed on the bus, excluding address size
+        :param data_size: The amount of data passed on the bus, excluding address size
         :return: Amount of cycles taken to pass the data on the bus
         """
         # Access time is 100 clock cycles + 1 cc for each additional block transferred on the bus starting from the 2nd.
-        address_size = int(log2(self.MAIN_MEM_SIZE_IN_BYTES))
         access_time = self.MEM_ACCESS_TIME + \
-                      (ceil((block_size + address_size) / self.MEM_BUS_WIDTH) - 1) * self.MEM_BUS_ACCESS_TIME
+                      (ceil(data_size / self.MEM_BUS_WIDTH) - 1) * self.MEM_BUS_ACCESS_TIME
         return access_time
+
+    def get_block_size(self) -> int:
+        """
+        :return: Main memory doesn't manage blocks for the sake of this simulation.
+                 This getter should never be called for MainMemory.
+        """
+        raise NotImplementedError('Main memory does not implement get_block_size, this is an application error.')
 
     def is_address_present(self, address: int) -> bool:
         """
@@ -58,47 +64,42 @@ class MainMemory(MemoryInterface):
         """
         return True
 
-    def read_miss_callback(self, address: int, block_size: int, data=[]) -> int:
+    def flush_if_needed(self, address: int) -> int:
         """
-        Do nothing for main memory, data should always be present and no miss should occur.
-        :return: (clock cycles elapsed as int)
+        :return: Should never be called for Main Memory as this is the last level of memory for this simulation,
+                 so there is nothing to flush to the next level.
         """
-        return 0
+        raise NotImplementedError('Main memory does not implement flush_if_needed, this is an application error.')
 
-    def write_miss_callback(self, address: int, block_size: int) -> int:
-        """
-            Do nothing for main memory, no write miss should occur hee.
-            :return: (clock cycles elapsed as int)
-        """
-        return 0
-
-    def write(self, address: int, block_size: int, data=[]) -> int:
+    def write(self, address: int, mark_dirty: bool, data_size: int, data=[]) -> int:
         """
         Save the block of data to the given address.
         :param address: Address to write to, 4 byte aligned
-        :param block_size: Block size to write to memory, in amount of bytes
+        :param mark_dirty: Ignored for Main Memory
+        :param data_size: Block size to write to memory, in amount of bytes
         :param data: Data to be saved, as a list of bytes, little endian format expected (will be saved as is)
-        :return: (clock cycles elapsed as int)
+        :return: (clock cycles elapsed as int - this is the amount of cycles expected to take to transfer the
+                  writen data on the bus from the PREVIOUS memory level to the current memory level)
         """
 
-        # Store data in mem cells from "address" to "address+block_size".
-        for i in range(0, block_size):
+        # Store data in mem cells from "address" to "address+data_size".
+        for i in range(0, data_size):
             self.mem[address + i] = data[i]
 
-        access_time = self.transfer_cycles(block_size)
+        access_time = self.transfer_cycles(data_size)
         return access_time
 
-    def read(self, address: int, block_size: int) -> (list, int):
+    def read(self, address: int, data_size: int) -> (list, int):
         """
-        Perform read operation from the main memory, at the size of block_size.
+        Perform read operation from the main memory, at the size of data_size.
         This method assumes the data is stored in the memory, and is valid.
         :param address: Address to read from, 4 byte aligned
-        :param block_size: Block size to read from memory and return to previous level, in amount of bytes.
-        :return: (data read as list of bytes, clock cycles elapsed as int)
+        :param data_size: Block size to read from memory and return to previous level, in amount of bytes.
+        :return: (data read as list of bytes, clock cycles elapsed as int to pass this data to previous mem level)
         """
 
-        data = self.mem[address:address+block_size]
-        access_time = self.transfer_cycles(block_size)
+        data = self.mem[address:address+data_size]
+        access_time = self.transfer_cycles(data_size)
 
         return data, access_time
 

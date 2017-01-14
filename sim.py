@@ -1,12 +1,14 @@
 import sys
+import traceback
+
 import sim_constants
-from main_memory import MainMemory
 from l1cache import L1Cache
 from l2cache import L2Cache
+from main_memory import MainMemory
 from sim_constants import CPU_DATA_SIZE
 
 
-def dump_statistics(main_mem, l1_cache, l2_cache, stats, cycles_elapsed):
+def dump_statistics(main_mem, l1_cache, l2_cache, stats, cycles_elapsed, mem_cycles_elapsed, mem_instructions_count):
     """
     Dumps the statistics of the simulation to the stats file
     :param main_mem: Main memory object
@@ -14,6 +16,8 @@ def dump_statistics(main_mem, l1_cache, l2_cache, stats, cycles_elapsed):
     :param l2_cache: L2 Cache object
     :param stats: Stats file name, the output of this function
     :param cycles_elapsed: The number of clock cycles the whole simulation took
+    :param mem_cycles_elapsed: The number of clock cycles memory operations took
+    :param mem_instructions_count: The number of load / store instructions executed
     """
 
     # Open stats file for write
@@ -62,7 +66,6 @@ def dump_statistics(main_mem, l1_cache, l2_cache, stats, cycles_elapsed):
         stats_out.write("{0:.4f}".format(l1_miss_rate) + "\n")
 
         # global miss rate
-        global_miss_rate = 0
         if l2_cache is None:
             # global miss rate for L1 only is L1 miss rate
             global_miss_rate = l1_miss_rate
@@ -77,20 +80,7 @@ def dump_statistics(main_mem, l1_cache, l2_cache, stats, cycles_elapsed):
         stats_out.write("{0:.4f}".format(global_miss_rate) + "\n")
 
         # AMAT
-        if l2_cache is None:
-            # hit time #1 + miss rate #1 * main memory hit time
-            amat = l1_cache.MEM_HIT_TIME + l1_miss_rate * main_mem.MEM_ACCESS_TIME
-        else:
-            # hit time #1 + miss rate #1 * (hit time #2 + miss rate #2 * main memory hit time)
-            l2_misses = l2_cache.read_misses + l2_cache.write_misses
-            l2_hits = l2_cache.read_hits + l2_cache.write_hits
-            if (l2_misses + l2_hits) > 0:
-                l2_miss_rate = l2_misses / (l2_misses + l2_hits)
-                amat_l2 = l2_cache.MEM_HIT_TIME + l2_miss_rate * main_mem.MEM_ACCESS_TIME  # calculate recursively
-                amat = l1_cache.MEM_HIT_TIME + l1_miss_rate * amat_l2
-            else:
-                amat = 0  # Protect against empty simulations
-
+        amat = mem_cycles_elapsed / mem_instructions_count
         stats_out.write("{0:.4f}".format(amat))
 
 
@@ -131,10 +121,14 @@ def simulate_cpu(trace, mem_interface) -> int:
     :param trace: Input file, containing Store and Load commands for the CPU to execute
     :param mem_interface: Pointer tot he first memory level in the memory hierarchy, usually the L1 Cache.
                           Next memory levels will be referred indirectly by the hierarchy, when needed.
-    :return: Amount of clock cycles the entire simulation took.
+    :return: (Amount of clock cycles the entire simulation took,
+              Amount of clock cycles only memory operations took,
+              Amount of store / load instructions executed)
     """
 
-    cc_counter = 0  # clock cycles counter initialization
+    cc_counter = 0              # A counter for the total clock cycles the program took
+    mem_cc_counter = 0          # A counter for the amount of clock cycles only memory operations took
+    count_mem_instructions = 0  # A counter for the number of memory instructions executed
 
     # Perform instructions according to trace file
     with open(trace, 'r') as cpu_calls:
@@ -156,8 +150,10 @@ def simulate_cpu(trace, mem_interface) -> int:
                 # Execute load instruction
                 data_fetched, cycles_elapsed = mem_interface.load(address, CPU_DATA_SIZE)
             cc_counter += cycles_elapsed
+            mem_cc_counter += cycles_elapsed
+            count_mem_instructions += 1
 
-    return cc_counter
+    return cc_counter, mem_cc_counter, count_mem_instructions
 
 
 def run_sim(levels, b1, b2, trace, memin, memout, l1, l2way0, l2way1, stats):
@@ -194,13 +190,13 @@ def run_sim(levels, b1, b2, trace, memin, memout, l1, l2way0, l2way1, stats):
     mem_hierarchy = l1_cache
 
     # This function drives the simulation of the cpu over the trace file, memory accesses will occur here
-    cycles_elapsed = simulate_cpu(trace, mem_hierarchy)
+    cycles_elapsed, mem_cycles_elapsed, mem_instructions_count = simulate_cpu(trace, mem_hierarchy)
 
     # Dumps the state of the memory hierarchy components to the respective output file.
     dump_mem_hierarchy_to_files(mem_hierarchy, levels, memout, l1, l2way0, l2way1)
 
     # Dumps the statistics of the simulation to the output file
-    dump_statistics(main_mem, l1_cache, l2_cache, stats, cycles_elapsed)
+    dump_statistics(main_mem, l1_cache, l2_cache, stats, cycles_elapsed, mem_cycles_elapsed, mem_instructions_count)
 
     print("Simulation ended successfully")
 
@@ -210,13 +206,22 @@ if __name__ == "__main__":
     Main function for the memory hierarchy simulation.
     """
 
-    run_sim(int(sys.argv[1]),  # levels
-            int(sys.argv[2]),  # b1
-            int(sys.argv[3]),  # b2
-            sys.argv[4],       # trace.txt
-            sys.argv[5],       # memin.txt
-            sys.argv[6],       # memout.txt
-            sys.argv[7],       # l1.txt
-            sys.argv[8],       # l2way0.txt
-            sys.argv[9],       # l2way1.txt
-            sys.argv[10])      # stats.txt
+    try:
+        run_sim(int(sys.argv[1]),  # levels
+                int(sys.argv[2]),  # b1
+                int(sys.argv[3]),  # b2
+                sys.argv[4],       # trace.txt
+                sys.argv[5],       # memin.txt
+                sys.argv[6],       # memout.txt
+                sys.argv[7],       # l1.txt
+                sys.argv[8],       # l2way0.txt
+                sys.argv[9],       # l2way1.txt
+                sys.argv[10])      # stats.txt
+    except NotImplementedError as err:
+        print("Simulation ended with an error.")
+        tb = traceback.format_exc()
+        print(tb)
+    except Exception as err:
+        print("Simulation ended with an error.")
+        tb = traceback.format_exc()
+        print(tb)

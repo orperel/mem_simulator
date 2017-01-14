@@ -29,53 +29,54 @@ class L2Cache(MemoryInterface):
         """
         return False  # TODO: Implement
 
-    def read_miss_callback(self, address: int, block_size: int, data=[]) -> int:
+    def get_block_size(self) -> int:
         """
-        This callback is triggered when a cache read miss occurred in the current mem level and the data now
-        arrived from the next mem level.
-        We write the data to the current cache level, according to write-allocate policy.
-        Since block sizes may be different across cache levels, we assume that bigger blocks that arrive from the
-        next level are simply truncated to the current block size.
-        :param address: The address of the data requested
-        :param block_size: The block size of the data requested
-        :param data: The data retrieved from the next mem level
-        :return: (clock cycles elapsed as int)
+        :return: The block size in bytes for L2 Cache
         """
-        pass    # TODO: Implement
+        return self.block_size
 
-    def write_miss_callback(self, address: int, block_size: int) -> int:
+    def flush_if_needed(self, address: int) -> int:
         """
-        This callback is triggered when a write cache miss occurred in the current mem level and
-        dirty data should now be handled before write process can resume.
-        :param address: Address of block to flush, 4 byte aligned
-        :param block_size: Block size to flush to next memory, in amount of bytes
-        :return: (clock cycles elapsed as int)
-        """
-        pass
-
-    def write(self, address: int, block_size: int, data=[]) -> int:
-        """
-        Save the data to the given address.
-        :param address: Address to write to, 4 byte aligned
-        :param block_size: Block size to write to memory, in amount of bytes
-        :param data: Data to be saved, as a list of bytes, little endian format expected (will be saved as is)
-        :return: (clock cycles elapsed as int)
+        This callback is triggered after a new block is loaded from the next mem level,
+        and it may conflict with an older block currently residing in the cache (identical block numbers).
+        This method checks if the old block is dirty and valid,
+        and if needed it will take care to flush it to the next level, according to the cache logic.
+        :param address: Address of new block we wish to write, 4 byte aligned.
+                        This address's tag may conflict with an older block with similar block number and a
+                        different tag, in which case we flush the old block.
+        :return: (clock cycles elapsed to flush old block as int -  0 if no flush have occurred)
         """
         return 0  # TODO: Implement
 
-    def read(self, address: int, block_size: int) -> (list, int):
+    def write(self, address: int, mark_dirty: bool, data_size: int, data=[]) -> int:
+        """
+        Save the data to the given address.
+        Data will be marked as "valid" and possibly "dirty", according to write-back policy.
+        Handling dirty data that already occupies the cache is not the concern of this method,
+        we assume that all data that should be committed have already been taken care of.
+        This method may update only part of the block, or an entire block, according to data_size given.
+        :param address: Address to write to, 4 byte aligned
+        :param mark_dirty: When true, the written block will be marked as dirty. False when not.
+        :param data_size: Data size to write to memory, in amount of bytes
+        :param data: Data to be saved, as a list of bytes, little endian format expected (will be saved as is)
+        :return: (clock cycles elapsed as int - this is the amount of cycles expected to take to transfer the
+                  writen data on the bus from the L1 cache to the L2 cache)
+        """
+        return 0  # TODO: Implement
+
+    def read(self, address: int, data_size: int) -> (list, int):
         """
         Perform read operation from the memory, using the memory's inner logic.
         This method assumes the data is stored in the cache, and is valid.
         :param address: Address to read from, 4 byte aligned
-        :param block_size: Block size to read from memory and return to previous level, in amount of bytes.
-                           This is not necessarily the L2Cache block_size, the previous level may request less bytes
-                           to transfer on the bus (therefore L2Cache may return a smaller block than it loads).
-        :return: (data read as list of bytes, clock cycles elapsed as int)
+        :param data_size: Amount of data in bytes to read from current memory level and return to previous level.
+                          Note this is not necessarily the block size: the previous level may request less bytes
+                          to transfer on the bus.
+        :return: (data read as list of bytes, clock cycles elapsed as int to pass this data to previous mem level)
         """
         return None  # TODO: Implement
 
-    def dump_output_file(self, *file_names):
+    def dump_memory(self, *file_names):
         """ Dumps the contents of memory hierarchy to the file names given as argument.
             Each level may use one or two files, and pass the rest of the list to the next level.
             For example: (l1.txt, l2way0.txt, l2way1.txt, memout.txt), L1 will use l1.txt and pass

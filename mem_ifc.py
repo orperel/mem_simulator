@@ -1,4 +1,5 @@
 import abc
+from sim_constants import CPU_DATA_SIZE
 
 
 class MemoryInterface(object):
@@ -35,49 +36,53 @@ class MemoryInterface(object):
         pass
 
     @abc.abstractmethod
-    def read_miss_callback(self, address: int, block_size: int, data=[]) -> int:
+    def get_block_size(self) -> int:
         """
-        This callback is triggered when a cache read miss occurred in the current mem level and the data now
-        arrived from the next mem level.
-        :param address: The address of the data requested
-        :param block_size: The block size of the data requested
-        :param data: The data retrieved from the next mem level
-        :return: (clock cycles elapsed as int)
+        :return: The block size in bytes for the current memory level.
         """
         pass
 
     @abc.abstractmethod
-    def write_miss_callback(self, address: int, block_size: int) -> int:
+    def flush_if_needed(self, address: int) -> int:
         """
-        This callback is triggered when a write cache miss occurred in the current mem level and
-        dirty data should now be handled before write process can resume.
-        :param address: Address of block to flush, 4 byte aligned
-        :param block_size: Block size to flush to next memory, in amount of bytes
-        :return: (clock cycles elapsed as int)
+        This callback is triggered after a new block is loaded from the next mem level,
+        and it may conflict with an older block currently residing in the cache (identical block numbers).
+        This method checks if the old block is dirty and valid,
+        and if needed it will take care to flush it to the next level, according to the cache logic.
+        :param address: Address of new block we wish to write, 4 byte aligned.
+                        This address's tag may conflict with an older block with similar block number and a
+                        different tag, in which case we flush the old block.
+        :return: (clock cycles elapsed to flush old block as int -  0 if no flush have occurred)
         """
         pass
 
     @abc.abstractmethod
-    def read(self, address: int, block_size: int) -> (list, int):
+    def read(self, address: int, data_size: int) -> (list, int):
         """
         Perform read operation from the memory, using the memory's inner logic.
-        This method assumes the data is stored in the memory, and is valid.
+        This method assumes the data is stored in the cache, and is valid.
         :param address: Address to read from, 4 byte aligned
-        :param block_size: Block size to read from memory, in amount of bytes.
-                           This is the amount returned to the caller on the bus by the read operation.
-                           The memory interface may use larger block sizes than that.
-        :return: (data read as list of bytes, clock cycles elapsed as int)
+        :param data_size: Amount of data in bytes to read from current memory level and return to previous level.
+                          Note this is not necessarily the block size: the previous level may request less bytes
+                          to transfer on the bus.
+        :return: (data read as list of bytes, clock cycles elapsed as int to pass this data to previous mem level)
         """
         pass
 
     @abc.abstractmethod
-    def write(self, address: int, block_size: int, data=[]) -> int:
+    def write(self, address: int, mark_dirty: bool, data_size: int, data=[]) -> int:
         """
         Save the data to the given address.
+        Data will be marked as "valid" and possibly "dirty", according to write-back policy.
+        Handling dirty data that already occupies the cache is not the concern of this method,
+        we assume that all data that should be committed have already been taken care of.
+        This method may update only part of the block, or an entire block, according to data_size given.
         :param address: Address to write to, 4 byte aligned
-        :param block_size: Block size to write to memory, in amount of bytes
+        :param mark_dirty: When true, the written block will be marked as dirty. False when not.
+        :param data_size: Data size to write to memory, in amount of bytes
         :param data: Data to be saved, as a list of bytes, little endian format expected (will be saved as is)
-        :return: (clock cycles elapsed as int)
+        :return: (clock cycles elapsed as int - this is the amount of cycles expected to take to transfer the
+                  writen data on the bus from the PREVIOUS memory level to the current memory level)
         """
         pass
 
@@ -85,7 +90,7 @@ class MemoryInterface(object):
         """
         Loads data from the given address, and updates statistics. Delegates to next mem level if needed.
         :param address: Address to read from, 4 byte aligned
-        :param block_size: Block size to read from memory, in amount of bytes
+        :param block_size: Block size the previous memory level requested to read from memory, in amount of bytes
         :return: (data read as list of bytes, clock cycles elapsed as int)
         """
         if self.is_address_present(address):  # Cache hit (or memory hit)
@@ -93,28 +98,65 @@ class MemoryInterface(object):
             return self.read(address, block_size)
         else:  # Cache miss
             self.read_misses += 1
-            block_start_address = address - (address % block_size)  # Fetch entire block from next level
-            data, cycles_elapsed = self.next_mem.load(block_start_address, block_size)
-            cycles_elapsed += self.read_miss_callback(address, block_size, data)
-            return data, cycles_elapsed
+
+            # Fetch entire block from next level
+            block_start_address = address - (address % self.get_block_size())
+            fetched_block, cycles_elapsed = self.next_mem.load(block_start_address, self.get_block_size())
+
+            # Data now arrived from next level..
+            # Before we write it to the current mem level, flush old dirty blocks if needed
+            # The memory level should decide if data should be written to next level or not, according to status bits.
+            flush_cycles = self.flush_if_needed(address)
+            cycles_elapsed += flush_cycles
+
+            # Update the cache with the missing data, according to write-allocate policy
+            # We don't count the clock cycles elapsed here since no data is transferred on the bus (this was accounted
+            # for during the load above)
+            mark_dirty = False
+            self.write(block_start_address, mark_dirty, self.get_block_size(), fetched_block)
+
+            # Perform a read to calculate read hit time that should be added for data transfer on the bus
+            # Fetched block here should be identical to the
+            read_cycles = self.read(address, block_size)[1]
+            cycles_elapsed += read_cycles
+
+            return fetched_block, cycles_elapsed
 
     def store(self, address: int, block_size: int, data=[]) -> int:
         """
         Save the data to the given address, and updates statistics. Delegates to next mem level if needed.
         :param address: Address to write to, 4 byte aligned
-        :param block_size: Block size to write to memory, in amount of bytes
+        :param block_size: Block size the previous memory level requested to write to memory, in amount of bytes
         :param data: Data to be saved, as a list of bytes, little endian format expected (will be saved as is)
         :return: (clock cycles elapsed as int)
         """
         if self.is_address_present(address):
             self.write_hits += 1
-            return self.write(address, block_size, data)
+            mark_dirty = True
+            return self.write(address, mark_dirty, block_size, data)
         else:
-            self.write_misses += 1
 
-            # The memory level should decide if data should be written to next level or not, according to status bits
-            cycles_elapsed = self.write_miss_callback(address, block_size)
-            cycles_elapsed += self.write(address, block_size, data)
+            # Fetch entire block from next level
+            block_start_address = address - (address % self.get_block_size())
+            fetched_block, cycles_elapsed = self.next_mem.load(block_start_address, self.get_block_size())
+
+            # Data now arrived from next level..
+            # Before we write it to the current mem level, flush old dirty blocks if needed
+            # The memory level should decide if data should be written to next level or not, according to status bits.
+            flush_cycles = self.flush_if_needed(address)
+            cycles_elapsed += flush_cycles
+
+            # Update the cache with the missing fetched block, according to write-allocate policy.
+            # We don't sum more clock cycles here because we've already counted them in the load call above
+            mark_dirty = False
+            self.write(block_start_address, mark_dirty, block_size, fetched_block)
+
+            # Now update the cache with the new data we've been tasked to store.
+            # Here we pay the "hit time" - of transferring data on the bus between the prev and current memory levels.
+            mark_dirty = True
+            write_cycles = self.write(address, mark_dirty, CPU_DATA_SIZE, data)
+            cycles_elapsed += write_cycles
+
             return cycles_elapsed
 
     def dump_output_file(self, file_name, mem):
