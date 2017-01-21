@@ -21,8 +21,8 @@ class L2Cache(MemoryInterface):
         self.block_size = block_size
         num_of_lines = int(self.CACHE_SIZE_IN_BYTES / (self.NUM_OF_WAYS*block_size))
 
-        self.data_mem = [([0]*block_size,)*self.NUM_OF_WAYS] * num_of_lines
-        self.tag_mem = [(None,)*self.NUM_OF_WAYS] * num_of_lines
+        self.data_mem = [[[0]*block_size]*self.NUM_OF_WAYS] * num_of_lines
+        self.tag_mem = [[0]*self.NUM_OF_WAYS] * num_of_lines
         self.lru_mem = [0] * num_of_lines
 
         self.offset_bits = int(log2(block_size))  # Includes 2 LSB of alignment bits
@@ -228,7 +228,7 @@ class L2Cache(MemoryInterface):
         way1_file_name = file_names[1]
         self.dump_output_file(way0_file_name, self.mem_table_to_list(0))
         self.dump_output_file(way1_file_name, self.mem_table_to_list(1))
-        self.next_mem.dump_output_file(file_names[2:])
+        self.next_mem.dump_memory(*file_names[2:])
 
     def print_mem(self, limit=-1):
         self.next_mem.print_mem(limit)

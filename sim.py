@@ -201,7 +201,7 @@ def run_sim(levels, b1, b2, trace, memin, memout, l1, l2way0, l2way1, stats):
         l1_cache = L1Cache(main_mem, b1)
     elif levels == 2:
         l2_cache = L2Cache(main_mem, b2)
-        l1 = L1Cache(l2_cache, b1)
+        l1_cache = L1Cache(l2_cache, b1)
     else:
         print("Invalid levels argument")
         exit(1)
@@ -217,7 +217,7 @@ def run_sim(levels, b1, b2, trace, memin, memout, l1, l2way0, l2way1, stats):
 
     # Dumps the statistics of the simulation to the output file
     dump_statistics(l1_cache, l2_cache, stats, cycles_elapsed, mem_cycles_elapsed, mem_instructions_count)
-
+    
     print("Simulation ended successfully")
 
 
@@ -225,7 +225,7 @@ if __name__ == "__main__":
     """
     Main function for the memory hierarchy simulation.
     """
-
+    
     try:
         run_sim(int(sys.argv[1]),  # levels
                 int(sys.argv[2]),  # b1
