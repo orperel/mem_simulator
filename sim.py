@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import sys
 import traceback
 
@@ -9,6 +11,9 @@ from sim_constants import CPU_DATA_SIZE
 
 
 """
+    This is the "main" file that runs the mem-cache simulator.
+    Choose between L1 / L2 modes while simulating as stated in project's instructions.
+
     Assumptions:
     ------------
         -   When L2 cache is on, compulsory miss that goes as deep as the Main Memory will update L1 and L2 serially
@@ -29,7 +34,8 @@ from sim_constants import CPU_DATA_SIZE
 """
 
 
-def dump_statistics(l1_cache, l2_cache, stats, cycles_elapsed, mem_cycles_elapsed, mem_instructions_count):
+def dump_statistics(l1_cache, l2_cache, stats, cycles_elapsed, mem_cycles_elapsed, mem_instructions_count) \
+        -> (float, int, float):
     """
     Dumps the statistics of the simulation to the stats file
     :param l1_cache: L1 Cache object
@@ -38,6 +44,7 @@ def dump_statistics(l1_cache, l2_cache, stats, cycles_elapsed, mem_cycles_elapse
     :param cycles_elapsed: The number of clock cycles the whole simulation took
     :param mem_cycles_elapsed: The number of clock cycles memory operations took
     :param mem_instructions_count: The number of load / store instructions executed
+    @:return Statistics relevant for plotting
     """
 
     # Open stats file for write
@@ -102,6 +109,9 @@ def dump_statistics(l1_cache, l2_cache, stats, cycles_elapsed, mem_cycles_elapse
         # AMAT
         amat = mem_cycles_elapsed / mem_instructions_count
         stats_out.write("{0:.4f}".format(amat))
+
+        # Returns results relevant for plotting
+        return l1_miss_rate, cycles_elapsed, amat
 
 
 def dump_mem_hierarchy_to_files(mem_interface, levels, memout, l1, l2way0, l2way1):
@@ -216,10 +226,13 @@ def run_sim(levels, b1, b2, trace, memin, memout, l1, l2way0, l2way1, stats):
     dump_mem_hierarchy_to_files(mem_hierarchy, levels, memout, l1, l2way0, l2way1)
 
     # Dumps the statistics of the simulation to the output file
-    dump_statistics(l1_cache, l2_cache, stats, cycles_elapsed, mem_cycles_elapsed, mem_instructions_count)
+    # Returns statistics relevant for graph plotting
+    l1_miss_rate, cycles_elapsed, amat = \
+        dump_statistics(l1_cache, l2_cache, stats, cycles_elapsed, mem_cycles_elapsed, mem_instructions_count)
     
     print("Simulation ended successfully")
 
+    return l1_miss_rate, cycles_elapsed, amat
 
 if __name__ == "__main__":
     """
