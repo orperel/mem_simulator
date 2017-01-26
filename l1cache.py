@@ -116,7 +116,7 @@ class L1Cache(MemoryInterface):
         :param address: Address input
         :return: Offset bits only, as LSB (meaning: the index of the address within the block)
         """
-        offset = (address & self.offset_bits)
+        offset = (address & self.offset_mask)
         return offset
 
     def address_to_block_num(self, address: int) -> int:

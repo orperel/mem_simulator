@@ -116,7 +116,7 @@ class MemoryInterface(object):
             self.write(block_start_address, mark_dirty, self.get_block_size(), fetched_block)
 
             # Perform a read to calculate read hit time that should be added for data transfer on the bus
-            # Fetched block here should be identical to the
+            # Fetched block here should be identical to the block_size of previous level
             read_cycles = self.read(address, block_size)[1]
             cycles_elapsed += read_cycles
 

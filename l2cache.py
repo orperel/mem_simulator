@@ -21,8 +21,8 @@ class L2Cache(MemoryInterface):
         self.block_size = block_size
         num_of_lines = int(self.CACHE_SIZE_IN_BYTES / (self.NUM_OF_WAYS*block_size))
 
-        self.data_mem = [[[0]*block_size]*self.NUM_OF_WAYS] * num_of_lines
-        self.tag_mem = [[0]*self.NUM_OF_WAYS] * num_of_lines
+        self.data_mem = [[[0]*block_size for i in range(self.NUM_OF_WAYS)] for j in range(num_of_lines)]
+        self.tag_mem = [[0]*self.NUM_OF_WAYS for i in range(num_of_lines)]
         self.lru_mem = [0] * num_of_lines
 
         self.offset_bits = int(log2(block_size))  # Includes 2 LSB of alignment bits
