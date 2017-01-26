@@ -150,12 +150,12 @@ class MemoryInterface(object):
             # Update the cache with the missing fetched block, according to write-allocate policy.
             # We don't sum more clock cycles here because we've already counted them in the load call above
             mark_dirty = False
-            self.write(block_start_address, mark_dirty, block_size, fetched_block)
+            self.write(block_start_address, mark_dirty, self.get_block_size(), fetched_block)
 
             # Now update the cache with the new data we've been tasked to store.
             # Here we pay the "hit time" - of transferring data on the bus between the prev and current memory levels.
             mark_dirty = True
-            write_cycles = self.write(address, mark_dirty, CPU_DATA_SIZE, data)
+            write_cycles = self.write(address, mark_dirty, block_size, data)
             cycles_elapsed += write_cycles
 
             return cycles_elapsed

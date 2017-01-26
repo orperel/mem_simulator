@@ -99,8 +99,11 @@ def dump_statistics(l1_cache, l2_cache, stats, cycles_elapsed, mem_cycles_elapse
         else:
             # global miss rate for L1 & L2 miss rate
             l2_misses = l2_cache.read_misses + l2_cache.write_misses
-            if (l1_misses + l1_hits) > 0:
-                global_miss_rate = l2_misses / (l1_misses + l1_hits)
+            l2_hits = l2_cache.read_hits + l2_cache.write_hits
+
+            if (l2_misses + l2_hits) > 0:
+                l2_miss_rate = l2_misses / (l2_misses + l2_hits)
+                global_miss_rate = l1_miss_rate * l2_miss_rate
             else:
                 global_miss_rate = 0  # Protect against empty simulations
 

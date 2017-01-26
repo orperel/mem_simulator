@@ -231,6 +231,5 @@ class L2Cache(MemoryInterface):
         self.next_mem.dump_memory(*file_names[2:])
 
     def print_mem(self, limit=-1):
-        self.next_mem.print_mem(limit)
-        # TODO: Implement..?
+        self.next_mem.print_mem(limit)  # Unimplemented for L2
         return
